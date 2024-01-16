@@ -1,0 +1,115 @@
+%% LOAD RAW DATA
+
+% set variables
+nfish=16;
+matrices=zeros(9,225000,16); 
+%Load data 
+for i=[1:nfish]
+    filename=strcat("R:\UQIFDEX-A4964\DataBehaviour\20210913\well_videos\3_DEX005_well_",int2str(i),"DLC_resnet50_NacreSimplePoseJul9shuffle0_1030000.h5");
+    temp=h5read(filename,"/df_with_missing/table");
+    temp2=temp.values_block_0;
+    matrices(:,1:45000,i) = temp2;%temp2(:,(frame-15000):(frame+163999));
+end
+clear var filename temp temp2 temp 3 X_eyes Y_eyes i
+
+%Extract the location (X,Y) of the swim bladder
+X_swimbladder=(squeeze(matrices(1,:,:))+squeeze(matrices(4,:,:)))/2;
+Y_swimbladder=(squeeze(matrices(2,:,:))+squeeze(matrices(5,:,:)))/2;
+%Extract the certainty of the location value of the swim bladder
+Prob_swimbladder=squeeze(matrices(3,:,:));
+
+%% PLOT EACH WELL DISTRIBUTION AND LOCATION CERTAINTY
+for i=1:size(X_swimbladder,2)
+    figure; plot(X_swimbladder(:,i),Y_swimbladder(:,i));
+    figure; plot(Prob_swimbladder(:,i));
+end
+clear var i
+
+% Remove values for probability of certainty below a threshold 
+for j=1:size(X_swimbladder,2)
+    for i=size(Prob_swimbladder,1):-1:1;
+        if (Prob_swimbladder(i,j)) < 0.9
+            if i==1
+                X_swimbladder(i,j)=nan;%X_swimbladder(i+1,j);
+                Y_swimbladder(i,j)=nan;%Y_swimbladder(i+1,j);
+                Prob_swimbladder(i,j)=nan;%Prob_swimbladder(i+1,j);
+            else
+                X_swimbladder(i,j)=nan;%X_swimbladder(i-1,j);
+                Y_swimbladder(i,j)=nan;%Y_swimbladder(i-1,j);
+                Prob_swimbladder(i,j)=nan;%Prob_swimbladder(i-1,j);
+            end
+        else
+        end
+    end
+end
+clear var i frames j
+
+%remove aberrant values of displacements
+for i=1:size(X_swimbladder,2)
+    for j=(size(X_swimbladder,1)-1):-1:1
+        temp=sqrt((X_swimbladder(j+1,i)-X_swimbladder(j,i)).^2 +(Y_swimbladder(j+1,i)-Y_swimbladder(j,i)).^2);
+        if temp>40 %Threshold of displacement
+            X_swimbladder(j+1,i)=nan;
+            X_swimbladder(j+1,i)=nan;
+        else
+        end
+    end
+end
+clear var temp i j
+
+
+%% REPLOT EACH WELL DISTRIBUTION (for check)
+for i=1:size(X_swimbladder,2)
+    figure; plot(X_swimbladder(:,i),Y_swimbladder(:,i));
+    figure; plot(Prob_swimbladder(:,i));
+end
+clear var i
+
+
+%% REMOVE WELLS WITH POOR ACTIVITY
+%First calculate the distance travelled overtime for each well
+move_swimbladder=[];
+for i=1:size(X_swimbladder,2)
+    temp=sqrt((X_swimbladder(1:(size(X_swimbladder,1)-1),i)-X_swimbladder(2:(size(X_swimbladder,1)),i)).^2 +(Y_swimbladder(1:(size(Y_swimbladder,1)-1),i)-Y_swimbladder(2:(size(Y_swimbladder,1)),i)).^2);
+    move_swimbladder=[move_swimbladder,temp];
+end
+move_swimbladder(isnan(move_swimbladder))=0;
+clear var temp i
+
+%Then calculate the distance travelled in total for each well
+move_average=mean(move_swimbladder(1:15000,:),1);
+
+%Remove wells where activity is below a threshold
+X_swimbladder_filtered=X_swimbladder; Y_swimbladder_filtered=Y_swimbladder;move_swimbladder_filtered=move_swimbladder;
+for i=size(move_average,2):-1:1
+    if move_average(i)<0.6
+        X_swimbladder_filtered(:,i)=[];
+        Y_swimbladder_filtered(:,i)=[];
+        move_swimbladder_filtered(:,i)=[];
+    else
+    end
+end
+clear var i
+
+x=(1:size(move_swimbladder_filtered,1))/(50*60);
+for i=1:size(move_swimbladder_filtered,2)
+    figure; 
+    plot(x,move_swimbladder_filtered(:,i));
+end
+
+
+%Calculate the average distance travelled accross a time length "length"
+%First replace nan values to 0
+move_swimbladder_filtered(isnan(move_swimbladder_filtered)) = 0;
+
+dist_travelled=[];
+length=50; %Time Length in number of frames
+for i=1:length:(size(move_swimbladder_filtered,1)-length+1)
+    temp=sum(sum(move_swimbladder_filtered(i:i+length-1,:)))/((size(move_swimbladder_filtered,2))*length);
+    dist_travelled=[dist_travelled,temp];
+end
+clear var temp i
+
+x_avg=(1:size(move_swimbladder_filtered,1)/length)*length/(50*60);
+
+figure; plot(x_avg,dist_travelled);xlabel('Time (min)');ylabel('Average distance travelled (px)');title(titlefig);
