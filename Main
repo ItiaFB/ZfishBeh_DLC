@@ -1,14 +1,14 @@
 %% LOAD RAW DATA
 
 % set variables
-nfish=16;
-matrices=zeros(9,225000,16); 
+nfish=16;nframes=225000;
+matrices=zeros(9,nframes,nfish); 
 %Load data 
 for i=[1:nfish]
-    filename=strcat("R:\UQIFDEX-A4964\DataBehaviour\20210913\well_videos\3_DEX005_well_",int2str(i),"DLC_resnet50_NacreSimplePoseJul9shuffle0_1030000.h5");
+    filename=strcat("R:\UQIFDEX-A4964\DataBehaviour\20210913\well_videos\3_DEX005_well_",int2str(i),"DLC_resnet50_NacreSimplePoseJul9shuffle0_1030000.h5"); %file location
     temp=h5read(filename,"/df_with_missing/table");
     temp2=temp.values_block_0;
-    matrices(:,1:45000,i) = temp2;%temp2(:,(frame-15000):(frame+163999));
+    matrices(:,1:45000,i) = temp2; %Chose to take the first 45000 frames, but any number of frames can be chosen here
 end
 clear var filename temp temp2 temp 3 X_eyes Y_eyes i
 
@@ -30,13 +30,13 @@ for j=1:size(X_swimbladder,2)
     for i=size(Prob_swimbladder,1):-1:1;
         if (Prob_swimbladder(i,j)) < 0.9
             if i==1
-                X_swimbladder(i,j)=nan;%X_swimbladder(i+1,j);
-                Y_swimbladder(i,j)=nan;%Y_swimbladder(i+1,j);
-                Prob_swimbladder(i,j)=nan;%Prob_swimbladder(i+1,j);
+                X_swimbladder(i,j)=nan;
+                Y_swimbladder(i,j)=nan;
+                Prob_swimbladder(i,j)=nan;
             else
-                X_swimbladder(i,j)=nan;%X_swimbladder(i-1,j);
-                Y_swimbladder(i,j)=nan;%Y_swimbladder(i-1,j);
-                Prob_swimbladder(i,j)=nan;%Prob_swimbladder(i-1,j);
+                X_swimbladder(i,j)=nan;
+                Y_swimbladder(i,j)=nan;
+                Prob_swimbladder(i,j)=nan;
             end
         else
         end
